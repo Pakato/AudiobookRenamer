@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34728.123
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioBookManager", "AudioBookManager\AudioBookManager.csproj", "{46015410-D0A7-4960-92A8-665CE4C47A55}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioBookManager.Core", "AudioBookManager.Core\AudioBookManager.Core.csproj", "{5658E012-1180-4269-8352-397B0C1788E1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		AudiobookFolder|Any CPU = AudiobookFolder|Any CPU
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{46015410-D0A7-4960-92A8-665CE4C47A55}.AudiobookFolder|Any CPU.ActiveCfg = Release|Any CPU
+		{46015410-D0A7-4960-92A8-665CE4C47A55}.AudiobookFolder|Any CPU.Build.0 = Release|Any CPU
+		{46015410-D0A7-4960-92A8-665CE4C47A55}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{46015410-D0A7-4960-92A8-665CE4C47A55}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{46015410-D0A7-4960-92A8-665CE4C47A55}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{46015410-D0A7-4960-92A8-665CE4C47A55}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5658E012-1180-4269-8352-397B0C1788E1}.AudiobookFolder|Any CPU.ActiveCfg = Debug|Any CPU
+		{5658E012-1180-4269-8352-397B0C1788E1}.AudiobookFolder|Any CPU.Build.0 = Debug|Any CPU
+		{5658E012-1180-4269-8352-397B0C1788E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5658E012-1180-4269-8352-397B0C1788E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5658E012-1180-4269-8352-397B0C1788E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5658E012-1180-4269-8352-397B0C1788E1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2A2E9831-CAC3-4F8E-93BD-F79C096FA7AA}
+	EndGlobalSection
+EndGlobal
