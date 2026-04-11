@@ -2,14 +2,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
-using AudioBookManager.Core;
 using AudioBookManager.Core.Interface;
-using Goodreads;
-using Goodreads.Models.Response;
-using TagLib.Riff;
+using Goodreads.Scraper;
+using Goodreads.Scraper.Configuration;
+using Goodreads.Scraper.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using File = System.IO.File;
 
 namespace AudioBookManager.Core
@@ -48,13 +49,12 @@ namespace AudioBookManager.Core
             foreach (var bookItem in Books)
             {
                 OnLogEventHandler($"Processando Livro {bookItem.BookTitle}");
-                //await bookItem.GenerateFolder(baseDirectory);
                 tasks.Add(bookItem.GenerateFolder(baseDirectory).ContinueWith(e =>
                 {
                     OnLogEventHandler($"Livro Processado {bookItem.BookTitle}");
                 }));
             }
-            //Task.WaitAll(tasks.ToArray());
+
             await Task.WhenAll(tasks).ContinueWith(e =>
             {
                 OnLogEventHandler($"Processamento finalizado");
@@ -166,7 +166,7 @@ namespace AudioBookManager.Core
             FoundArtist = ReturnArtist(true);
         }
 
-        private async Task HandleFolderLoad(string directory)
+        private Task HandleFolderLoad(string directory)
         {
             if (!Books.Exists(item => item.Path == directory))
             {
@@ -177,6 +177,7 @@ namespace AudioBookManager.Core
                     OnLogEventHandler($"Adicionando Livro {book.BookTitle}");
                 }
             }
+            return Task.CompletedTask;
         }
 
         internal virtual void OnLogEventHandler(string logtext)
@@ -184,49 +185,124 @@ namespace AudioBookManager.Core
             LogEventHandler?.Invoke($"{DateTime.Now.ToString()} {logtext}{System.Environment.NewLine}");
         }
 
-        public void LoadGoodReads()
+        /// <summary>
+        /// Loads book metadata from Goodreads using the Puppeteer web scraper (headless browser).
+        /// This method is async and should be used instead of LoadGoodReads() as the API is discontinued.
+        /// Uses PuppeteerSharp for better JavaScript support and anti-bot evasion.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task LoadGoodReadsScraperAsync(CancellationToken cancellationToken = default)
         {
-            IGoodreadsClient GoodReadsClient = GoodreadsClient.Create("OXYjCfxKJuD3mprEP0zQg", "9YXp6q0AFZL7aRznsF9eKCY9L6PiTXdlmiLhphyKQ");
-            foreach (var fol in Books)
+            OnLogEventHandler("Iniciando busca no Goodreads (Puppeteer Browser)...");
+
+            // Create scraper service with default settings
+            var settings = new GoodreadsScraperSettings
             {
-                if (fol.GoodReadsBook != null)
-                    continue;
-                var search = GoodReadsClient.Books.Search(StringHelper.ToTitleCase(fol.Artist, TitleCase.All) + " " +
-                                                          StringHelper.ToTitleCase(fol.BookTitle, TitleCase.All));
-                search.Wait();
-                Work book = null;
-                if (search.Result.List != null && search.Result.List.Count > 0)
+                RequestDelayMs = 2500,  // Slightly longer delay for browser-based scraping
+                MaxRetries = 3,
+                MaxSearchResults = 10,
+                TimeoutSeconds = 60
+            };
+
+            var optionsWrapper = Options.Create(settings);
+            var logger = NullLogger<GoodreadsPuppeteerScraperService>.Instance;
+
+            await using var scraperService = new GoodreadsPuppeteerScraperService(optionsWrapper, logger);
+
+            OnLogEventHandler("Browser headless inicializado...");
+
+            foreach (var book in Books)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    break;
+
+                // Skip if already has metadata
+                if (book.ScrapedMetadata != null)
                 {
-                    if (search.Result.List.Count == 1)
-                        book = search.Result.List.First();
+                    OnLogEventHandler($"Livro já possui metadata: {book.BookTitle}");
+                    continue;
+                }
+
+                try
+                {
+                    var searchQuery = $"{StringHelper.ToTitleCase(book.Artist, TitleCase.All)} {StringHelper.ToTitleCase(book.BookTitle, TitleCase.All)}";
+                    OnLogEventHandler($"Buscando: {searchQuery}");
+
+                    var searchResults = await scraperService.SearchBooksAsync(searchQuery, cancellationToken);
+
+                    if (searchResults == null || searchResults.Count == 0)
+                    {
+                        OnLogEventHandler($"Nenhum resultado encontrado para: {book.BookTitle}");
+                        continue;
+                    }
+
+                    // Find best match
+                    GoodreadsSearchResult bestMatch = null;
+                    var normalizedBookTitle = StringHelper.ToTitleCase(book.BookTitle, TitleCase.All).ToLower();
+
+                    if (searchResults.Count == 1)
+                    {
+                        bestMatch = searchResults[0];
+                    }
                     else
                     {
-                        foreach (var work in search.Result.List)
+                        foreach (var result in searchResults)
                         {
-                            int ss = work.BestBook.Title.ToLower().IndexOf("(");
-                            if (ss <= 0)
-                                ss = work.BestBook.Title.ToLower().Length;
-                            if (work.BestBook.Title.ToLower().Substring(0, ss).Contains(
-                                StringHelper.ToTitleCase(fol.BookTitle, TitleCase.All).ToLower()))
+                            var resultTitle = result.Title.ToLower();
+                            int parenIndex = resultTitle.IndexOf("(");
+                            if (parenIndex <= 0)
+                                parenIndex = resultTitle.Length;
+
+                            if (resultTitle.Substring(0, parenIndex).Contains(normalizedBookTitle))
                             {
-                                book = work;
+                                bestMatch = result;
                                 break;
                             }
                         }
+
+                        // If no exact match, use first result
+                        bestMatch ??= searchResults[0];
+                    }
+
+                    if (bestMatch != null && !string.IsNullOrEmpty(bestMatch.BookId))
+                    {
+                        OnLogEventHandler($"Obtendo detalhes para: {bestMatch.Title}");
+                        var metadata = await scraperService.GetBookMetadataAsync(bestMatch.BookId, cancellationToken);
+
+                        if (metadata != null)
+                        {
+                            book.ScrapedMetadata = metadata;
+                            if (metadata.Year.HasValue)
+                                book.Year = metadata.Year.Value;
+                            if (!string.IsNullOrEmpty(metadata.PrimaryAuthor))
+                                book.Artist = metadata.PrimaryAuthor;
+                            if (!string.IsNullOrEmpty(metadata.Series)) {
+                                book.Album = metadata.Series;
+                                if (!string.IsNullOrEmpty(metadata.SeriesNumber))
+                                    book.BookTitle = $"{metadata.Series} {metadata.SeriesNumber}";
+                            }
+                            if (!string.IsNullOrEmpty(metadata.SeriesNumber) && int.TryParse(metadata.SeriesNumber, out int bookNumber))
+                                book.BookNumber = bookNumber;
+
+
+
+
+                            OnLogEventHandler($"Metadata obtido: {metadata.Title} ({metadata.Year}) - Rating: {metadata.Rating}");
+                        }
                     }
                 }
-                if (book != null)
+                catch (OperationCanceledException)
                 {
-                    var getBook = GoodReadsClient.Books.GetByBookId(book.BestBook.Id);
-                    getBook.Wait();
-                    if (getBook.Result != null)
-                    {
-                        fol.GoodReadsBook = getBook.Result;
-                        if (fol.GoodReadsBook.PublicationDate.HasValue)
-                            fol.Year = fol.GoodReadsBook.PublicationDate.Value.Year;
-                    }
+                    OnLogEventHandler("Operação cancelada pelo usuário.");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    OnLogEventHandler($"Erro ao buscar {book.BookTitle}: {ex.Message}");
                 }
             }
+
+            OnLogEventHandler("Busca no Goodreads finalizada.");
         }
     }
 

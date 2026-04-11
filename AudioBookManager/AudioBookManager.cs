@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
-using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -29,16 +24,6 @@ namespace AudioBookManager
         {
             textBox1.Text = AppStart.DefaultPath;
             textBox2.Text = AppStart.DownloadPath;
-        }
-
-        private void Label2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void TextBox2_TextChanged(object sender, EventArgs e)
-        {
-
         }
 
         private void Button1_Click(object sender, EventArgs e)
@@ -112,9 +97,9 @@ namespace AudioBookManager
 
         public void CleanTextBox3()
         {
-            if (textBox1.InvokeRequired)
+            if (textBox3.InvokeRequired)
             {
-                textBox1.Invoke(new System.Action(CleanTextBox3));
+                textBox3.Invoke(new Action(CleanTextBox3));
                 return;
             }
             textBox3.Text = string.Empty;
@@ -124,7 +109,7 @@ namespace AudioBookManager
         {
             if (textBox4.InvokeRequired)
             {
-                textBox2.Invoke(new System.Action(CleanTextBox4));
+                textBox4.Invoke(new Action(CleanTextBox4));
                 return;
             }
             textBox4.Text = string.Empty;
@@ -141,9 +126,9 @@ namespace AudioBookManager
             dataGridView1.Refresh();
         }
 
-        private void Button4_Click(object sender, EventArgs e)
+        private async void Button4_Click(object sender, EventArgs e)
         {
-            CurrentBookCollection.LoadCurrentFolder(textBox1.Text, textBox3.Text, textBox4.Text).Wait();
+            await CurrentBookCollection.LoadCurrentFolder(textBox1.Text, textBox3.Text, textBox4.Text);
             LoadGrid();
         }
 
@@ -181,20 +166,44 @@ namespace AudioBookManager
             textBox5.ResumeLayout();
         }
 
-        private void Button6_Click(object sender, EventArgs e)
+        private async void Button6_Click(object sender, EventArgs e)
         {
             folderBrowserDialog1.SelectedPath = textBox1.Text;
             if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
             {
-                CurrentBookCollection.LoadCurrentFolderSelected(folderBrowserDialog1.SelectedPath).Wait();
+                await CurrentBookCollection.LoadCurrentFolderSelected(folderBrowserDialog1.SelectedPath);
                 LoadGrid();
             }
         }
 
-        private void Button7_Click(object sender, EventArgs e)
+        private async void Button7_Click(object sender, EventArgs e)
         {
-            CurrentBookCollection.LoadGoodReads();
-            LoadGrid();
+            if (CurrentBookCollection == null || !CurrentBookCollection.Books.Any())
+            {
+                MessageBox.Show("Nenhum livro carregado. Adicione livros primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Disable button during operation
+            var button = (Button)sender;
+            button.Enabled = false;
+            AppendTextBox($"Iniciando busca no Goodreads...{Environment.NewLine}");
+
+            try
+            {
+                await CurrentBookCollection.LoadGoodReadsScraperAsync();
+                LoadGrid();
+                AppendTextBox($"Busca no Goodreads concluída!{Environment.NewLine}");
+            }
+            catch (Exception ex)
+            {
+                AppendTextBox($"Erro ao buscar no Goodreads: {ex.Message}{Environment.NewLine}");
+                MessageBox.Show($"Erro ao buscar no Goodreads: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                button.Enabled = true;
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ATL;
 using ATL.CatalogDataReaders;
+using Goodreads.Scraper.Models;
 using Polly;
 using Polly.Timeout;
 using TagLib;
@@ -30,7 +31,10 @@ namespace AudioBookManager.Core.Interface
         public string Album { get; set; }
         public int Year { get; set; }
 
-        public Goodreads.Models.Response.Book GoodReadsBook { get; set; }
+        /// <summary>
+        /// Metadata scraped from Goodreads using the web scraper.
+        /// </summary>
+        public AudiobookMetadata ScrapedMetadata { get; set; }
 
         public List<Exception> ErrorStack { get; set; }
         public bool isNewBook = false;
@@ -41,9 +45,9 @@ namespace AudioBookManager.Core.Interface
         {
             get
             {
-                if (GoodReadsBook != null)
+                if (ScrapedMetadata != null && ScrapedMetadata.Rating.HasValue)
                 {
-                    return GoodReadsBook.AverageRating.ToString();
+                    return ScrapedMetadata.Rating.Value.ToString("0.00");
                 }
 
                 return string.Empty;

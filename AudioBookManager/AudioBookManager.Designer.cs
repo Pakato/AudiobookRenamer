@@ -82,7 +82,6 @@
             this.textBox2.Name = "textBox2";
             this.textBox2.Size = new System.Drawing.Size(1109, 20);
             this.textBox2.TabIndex = 3;
-            this.textBox2.TextChanged += new System.EventHandler(this.TextBox2_TextChanged);
             // 
             // label2
             // 
@@ -92,7 +91,6 @@
             this.label2.Size = new System.Drawing.Size(83, 13);
             this.label2.TabIndex = 2;
             this.label2.Text = "Downloadt Path";
-            this.label2.Click += new System.EventHandler(this.Label2_Click);
             // 
             // button1
             // 
