@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using ATL;
 using AudioBookManager.Core.Interface;
+using AudioBookManager.Core.Telemetry;
+using Serilog;
 
 namespace AudioBookManager.Core
 {
@@ -55,6 +57,10 @@ namespace AudioBookManager.Core
 
         protected override async Task HandleFiles(string bookFolder)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("BookFile.HandleFiles");
+            activity?.SetTag("book.title", BookTitle);
+            activity?.SetTag("source.path", Path);
+
             var newFilePath = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All)} - {(1).ToString().PadLeft(2, '0')}{System.IO.Path.GetExtension(Path)}";
             var newAudioPath = System.IO.Path.Combine(bookFolder, newFilePath);
 

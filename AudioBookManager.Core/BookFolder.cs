@@ -7,6 +7,8 @@ using System.Text;
 using System.Threading.Tasks;
 using ATL;
 using AudioBookManager.Core.Interface;
+using AudioBookManager.Core.Telemetry;
+using Serilog;
 
 namespace AudioBookManager.Core
 {
@@ -81,6 +83,13 @@ namespace AudioBookManager.Core
 
         protected override async Task HandleFiles(string bookFolder)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("BookFolder.HandleFiles");
+            activity?.SetTag("book.title", BookTitle);
+            activity?.SetTag("audio.file_count", AudioFiles.Count);
+            activity?.SetTag("other.file_count", OtherFiles.Count);
+            activity?.SetTag("cue.file_count", CueFiles.Count);
+            Log.Debug("Processando pasta: {BookFolder}, Arquivos: {FileCount}", bookFolder, AudioFiles.Count);
+
             ErrorStack = new List<Exception>();
             var tasks = new List<Task>();
             int i = 0;

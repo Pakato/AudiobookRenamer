@@ -5,7 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using AudioBookManager.Core;
-using OpenTelemetry.Trace;
+using AudioBookManager.Core.Telemetry;
+using Serilog;
 
 namespace AudioBookManager
 {
@@ -31,6 +32,9 @@ namespace AudioBookManager
             folderBrowserDialog1.SelectedPath = textBox2.Text;
             if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
             {
+                using var activity = AudioBookTelemetry.ActivitySource.StartActivity("UI.LoadFromFolder");
+                activity?.SetTag("source.path", folderBrowserDialog1.SelectedPath);
+                Log.Information("Carregando livros da pasta: {Path}", folderBrowserDialog1.SelectedPath);
                 CreateNewBookCollection();
                 CurrentBookCollection.AddBook(folderBrowserDialog1.SelectedPath, true);
                 LoadGrid();
@@ -42,6 +46,9 @@ namespace AudioBookManager
             openFileDialog1.InitialDirectory = textBox2.Text;
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
+                using var activity = AudioBookTelemetry.ActivitySource.StartActivity("UI.LoadFromFiles");
+                activity?.SetTag("file.count", openFileDialog1.FileNames.Length);
+                Log.Information("Carregando {FileCount} arquivo(s)", openFileDialog1.FileNames.Length);
                 CreateNewBookCollection();
                 openFileDialog1.FileNames.ToList().ForEach(file => CurrentBookCollection.AddBook(file));
                 LoadGrid();
@@ -61,23 +68,20 @@ namespace AudioBookManager
 
         private async void Button3_Click(object sender, EventArgs e)
         {
-            var span = Program.MainActivitySource.StartActivity("Botao Renomear");
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("UI.Rename");
             if (CheckReady())
             {
-                using (var span1 = Program.MainActivitySource.StartActivity("RenameData"))
+                using (var renameActivity = AudioBookTelemetry.ActivitySource.StartActivity("UI.Rename.SetData"))
                 {
-                    span1.SetTag("Album", textBox4.Text);
+                    renameActivity?.SetTag("album", textBox4.Text);
+                    renameActivity?.SetTag("artist", textBox3.Text);
                     CurrentBookCollection.SetAlbum(textBox4.Text);
-                    span1.SetTag("Artist", textBox3.Text);
                     CurrentBookCollection.SetArtist(textBox3.Text);
                 }
-                using var span2 = Program.MainActivitySource.StartActivity("DoRename");
+                Log.Information("Iniciando renomeação - Artist: {Artist}, Album: {Album}", textBox3.Text, textBox4.Text);
+                using var processActivity = AudioBookTelemetry.ActivitySource.StartActivity("UI.Rename.Process");
                 await CurrentBookCollection.CreateBaseDirectory(textBox1.Text).ContinueWith(task => ResetScreen());
-                span2.Stop();
-
             }
-            span.Stop();
-
         }
 
         public bool CheckReady()
@@ -128,6 +132,8 @@ namespace AudioBookManager
 
         private async void Button4_Click(object sender, EventArgs e)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("UI.LoadCurrentFolder");
+            Log.Information("Carregando pasta atual: {Path}", textBox1.Text);
             await CurrentBookCollection.LoadCurrentFolder(textBox1.Text, textBox3.Text, textBox4.Text);
             LoadGrid();
         }
@@ -171,6 +177,9 @@ namespace AudioBookManager
             folderBrowserDialog1.SelectedPath = textBox1.Text;
             if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
             {
+                using var activity = AudioBookTelemetry.ActivitySource.StartActivity("UI.LoadSelectedFolder");
+                activity?.SetTag("selected.path", folderBrowserDialog1.SelectedPath);
+                Log.Information("Carregando pasta selecionada: {Path}", folderBrowserDialog1.SelectedPath);
                 await CurrentBookCollection.LoadCurrentFolderSelected(folderBrowserDialog1.SelectedPath);
                 LoadGrid();
             }
@@ -184,19 +193,25 @@ namespace AudioBookManager
                 return;
             }
 
-            // Disable button during operation
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("UI.GoodreadsScrape");
+            activity?.SetTag("book.count", CurrentBookCollection.Books.Count);
+
             var button = (Button)sender;
             button.Enabled = false;
             AppendTextBox($"Iniciando busca no Goodreads...{Environment.NewLine}");
+            Log.Information("Iniciando busca no Goodreads para {BookCount} livros", CurrentBookCollection.Books.Count);
 
             try
             {
                 await CurrentBookCollection.LoadGoodReadsScraperAsync();
                 LoadGrid();
                 AppendTextBox($"Busca no Goodreads concluída!{Environment.NewLine}");
+                Log.Information("Busca no Goodreads concluída");
             }
             catch (Exception ex)
             {
+                activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, ex.Message);
+                Log.Error(ex, "Erro ao buscar no Goodreads");
                 AppendTextBox($"Erro ao buscar no Goodreads: {ex.Message}{Environment.NewLine}");
                 MessageBox.Show($"Erro ao buscar no Goodreads: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }

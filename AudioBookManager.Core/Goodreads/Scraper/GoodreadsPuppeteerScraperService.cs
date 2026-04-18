@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using System.Web;
 using AngleSharp;
 using AngleSharp.Dom;
+using AudioBookManager.Core.Telemetry;
 using Goodreads.Scraper.Configuration;
 using Goodreads.Scraper.Http;
 using Goodreads.Scraper.Models;
@@ -89,6 +91,9 @@ namespace Goodreads.Scraper
 
         private async Task<string> FetchPageAsync(string url, CancellationToken cancellationToken = default)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("Goodreads.FetchPage");
+            activity?.SetTag("http.url", url);
+
             await EnforceRateLimitAsync(cancellationToken);
             var browser = await GetBrowserAsync(cancellationToken);
             await using var page = await browser.NewPageAsync();
@@ -112,6 +117,7 @@ namespace Goodreads.Scraper
 
                 if (response == null || !response.Ok)
                 {
+                    activity?.SetStatus(ActivityStatusCode.Error, $"HTTP {response?.Status}");
                     _logger.LogWarning("Failed to load page: {Url}, Status: {Status}", url, response?.Status);
                     return string.Empty;
                 }
@@ -128,6 +134,7 @@ namespace Goodreads.Scraper
 
                 await Task.Delay(500, cancellationToken);
                 var html = await page.GetContentAsync();
+                activity?.SetTag("http.response.content_length", html.Length);
                 _logger.LogDebug("Successfully fetched page: {Url} ({Length} chars)", url, html.Length);
                 return html;
             }
@@ -165,6 +172,9 @@ namespace Goodreads.Scraper
 
         public async Task<IReadOnlyList<GoodreadsSearchResult>> SearchBooksAsync(string query, CancellationToken cancellationToken = default)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("Goodreads.SearchBooks");
+            activity?.SetTag("search.query", query);
+
             ArgumentException.ThrowIfNullOrWhiteSpace(query);
             _logger.LogInformation("Searching Goodreads (Puppeteer) for: {Query}", query);
 
@@ -178,11 +188,16 @@ namespace Goodreads.Scraper
                 return [];
             }
 
-            return await ParseSearchResultsAsync(html, cancellationToken);
+            var results = await ParseSearchResultsAsync(html, cancellationToken);
+            activity?.SetTag("search.result_count", results.Count);
+            return results;
         }
 
         public async Task<AudiobookMetadata?> GetBookMetadataAsync(string bookId, CancellationToken cancellationToken = default)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("Goodreads.GetBookMetadata");
+            activity?.SetTag("book.id", bookId);
+
             ArgumentException.ThrowIfNullOrWhiteSpace(bookId);
             _logger.LogInformation("Fetching metadata (Puppeteer) for book ID: {BookId}", bookId);
 

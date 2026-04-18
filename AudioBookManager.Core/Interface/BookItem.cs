@@ -8,9 +8,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using ATL;
 using ATL.CatalogDataReaders;
+using AudioBookManager.Core.Telemetry;
 using Goodreads.Scraper.Models;
 using Polly;
 using Polly.Timeout;
+using Serilog;
 using TagLib;
 using ThreadState = System.Threading.ThreadState;
 
@@ -66,8 +68,14 @@ namespace AudioBookManager.Core.Interface
 
         protected async Task<bool> HandleTagFile(string filePath, int track)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("BookItem.HandleTagFile");
+            activity?.SetTag("file.path", filePath);
+            activity?.SetTag("track.number", track);
+            activity?.SetTag("book.title", BookTitle);
+
             bool resultt = false;
             Debugger.Log(1, "FileTagging", $"Tagging Arquivo {filePath} {Environment.NewLine}");
+            Log.Debug("Tagging arquivo: {FilePath}, Track: {Track}", filePath, track);
             try
             {
 
@@ -155,14 +163,30 @@ namespace AudioBookManager.Core.Interface
 
 
                 Debugger.Log(1, "FileTagging", $"Tagging Arquivo - Sucesso {filePath} {Environment.NewLine}");
+                if (resultt)
+                {
+                    AudioBookTelemetry.FilesTagged.Add(1);
+                    Log.Debug("Tagging bem sucedido: {FilePath}", filePath);
+                }
+                else
+                {
+                    AudioBookTelemetry.FileTagErrors.Add(1);
+                    Log.Warning("Tagging falhou (fallback usado): {FilePath}", filePath);
+                }
             }
             catch (Polly.Timeout.TimeoutRejectedException ex)
             {
+                AudioBookTelemetry.FileTagErrors.Add(1);
+                activity?.SetStatus(ActivityStatusCode.Error, "Timeout");
+                Log.Warning(ex, "Timeout ao processar tagging: {FilePath}", filePath);
                 Debugger.Log(1, "FileTagging",
                     $"Tagging Arquivo - OLD Method Execute {filePath} {Environment.NewLine}");
             }
             catch (Exception e)
             {
+                AudioBookTelemetry.FileTagErrors.Add(1);
+                activity?.SetStatus(ActivityStatusCode.Error, e.Message);
+                Log.Error(e, "Erro ao processar tagging: {FilePath}", filePath);
                 Debugger.Log(1, "FileTagging", $"Tagging Arquivo - Insucesso {filePath} {Environment.NewLine}");
                 ErrorStack.Add(e);
             }
@@ -194,6 +218,11 @@ namespace AudioBookManager.Core.Interface
 
         public async Task GenerateFolder(string albumFolder)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("BookItem.GenerateFolder");
+            activity?.SetTag("book.title", BookTitle);
+            activity?.SetTag("book.number", BookNumber);
+            activity?.SetTag("album.folder", albumFolder);
+
             var newName = string.Format("{0}\\Book {1} - {2}",
                 StringHelper.ToTitleCase(Album, TitleCase.All),
                 BookNumber.ToString().PadLeft(2, '0'),
