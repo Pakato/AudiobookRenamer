@@ -61,6 +61,8 @@ namespace AudioBookManager.Core.Interface
             return !string.IsNullOrEmpty(Path);
         }
 
+        public abstract IEnumerable<string> SourceFiles { get; }
+
         protected abstract Task HandleFiles(string bookFolder);
 
         protected abstract Task CleanFiles();
@@ -223,11 +225,10 @@ namespace AudioBookManager.Core.Interface
             activity?.SetTag("book.number", BookNumber);
             activity?.SetTag("album.folder", albumFolder);
 
-            var newName = string.Format("{0}\\Book {1} - {2}",
-                StringHelper.ToTitleCase(Album, TitleCase.All),
-                BookNumber.ToString().PadLeft(2, '0'),
-                StringHelper.ToTitleCase(BookTitle, TitleCase.All));
-            var path = System.IO.Path.Combine(albumFolder, newName);
+            var albumSegment = StringHelper.ToTitleCase(Album, TitleCase.All).ToSafeFileName();
+            var titleSegment = StringHelper.ToTitleCase(BookTitle, TitleCase.All).ToSafeFileName();
+            var bookFolderSegment = $"Book {BookNumber.ToString().PadLeft(2, '0')} - {titleSegment}";
+            var path = System.IO.Path.Combine(albumFolder, albumSegment, bookFolderSegment);
             if (!Directory.Exists(path))
                 Directory.CreateDirectory(path);
             await HandleFiles(path);
@@ -237,8 +238,38 @@ namespace AudioBookManager.Core.Interface
             }
             else
             {
+                ReportProcessingErrors(activity, path);
                 BookCollection.CurrentConnection.OnLogEventHandler($"Erro ao processar a pasta: {path}");
             }
+        }
+
+        private void ReportProcessingErrors(Activity activity, string path)
+        {
+            AudioBookTelemetry.BookProcessingErrors.Add(1,
+                new KeyValuePair<string, object>("book.title", BookTitle),
+                new KeyValuePair<string, object>("book.number", BookNumber));
+
+            activity?.SetStatus(ActivityStatusCode.Error, $"{ErrorStack.Count} error(s) while processing folder");
+            activity?.SetTag("error.count", ErrorStack.Count);
+            activity?.SetTag("output.path", path);
+            activity?.SetTag("book.artist", Artist);
+            activity?.SetTag("book.album", Album);
+            activity?.SetTag("book.year", Year);
+
+            for (int i = 0; i < ErrorStack.Count; i++)
+            {
+                var ex = ErrorStack[i];
+                activity?.AddException(ex, new TagList
+                {
+                    { "error.index", i },
+                    { "book.title", BookTitle },
+                    { "output.path", path }
+                });
+            }
+
+            Log.Error(
+                "Erro ao processar a pasta {Path} para {BookTitle} ({ErrorCount} erros). Primeiro erro: {FirstError}",
+                path, BookTitle, ErrorStack.Count, ErrorStack[0].Message);
         }
     }
 

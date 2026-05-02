@@ -41,6 +41,35 @@ namespace AudioBookManager.Core
             return CurrentConnection;
         }
 
+        public List<string> GetLockedFiles()
+        {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("BookCollection.GetLockedFiles");
+            var locked = Books
+                .SelectMany(b => b.SourceFiles)
+                .Where(path => !string.IsNullOrEmpty(path) && !TryOpenForRead(path))
+                .ToList();
+            activity?.SetTag("locked.count", locked.Count);
+            return locked;
+        }
+
+        private static bool TryOpenForRead(string path)
+        {
+            try
+            {
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete);
+                return true;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
         public async Task CreateBaseDirectory(string rootPath)
         {
             using var activity = AudioBookTelemetry.ActivitySource.StartActivity("BookCollection.CreateBaseDirectory");
@@ -52,7 +81,7 @@ namespace AudioBookManager.Core
             OnLogEventHandler($"Iniciando processamento");
             Log.Information("Iniciando processamento de {BookCount} livros em {RootPath}", Books.Count, rootPath);
 
-            string newName = $"{StringHelper.ToTitleCase(ReturnArtist(true), TitleCase.All)}";
+            string newName = StringHelper.ToTitleCase(ReturnArtist(true), TitleCase.All).ToSafeFileName();
             string baseDirectory = Path.Combine(rootPath, newName);
             if (!Directory.Exists(Path.Combine(rootPath, newName)))
                 Directory.CreateDirectory(baseDirectory);

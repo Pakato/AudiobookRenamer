@@ -71,6 +71,26 @@ namespace AudioBookManager
             using var activity = AudioBookTelemetry.ActivitySource.StartActivity("UI.Rename");
             if (CheckReady())
             {
+                var lockedFiles = CurrentBookCollection.GetLockedFiles();
+                if (lockedFiles.Count > 0)
+                {
+                    var preview = string.Join(Environment.NewLine,
+                        lockedFiles.Take(15).Select(f => $"  • {f}"));
+                    var more = lockedFiles.Count > 15 ? $"{Environment.NewLine}  … (+{lockedFiles.Count - 15} mais)" : string.Empty;
+                    var message =
+                        $"{lockedFiles.Count} arquivo(s) está(ão) bloqueado(s) por outro processo (torrent, antivírus, player) " +
+                        $"e não podem ser copiados. Feche o programa que os está usando e tente novamente.{Environment.NewLine}{Environment.NewLine}" +
+                        $"{preview}{more}";
+
+                    activity?.SetTag("locked.count", lockedFiles.Count);
+                    activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, "Arquivos de origem bloqueados");
+                    Log.Warning("Renomeação abortada: {LockedCount} arquivo(s) bloqueado(s). Primeiro: {FirstLocked}",
+                        lockedFiles.Count, lockedFiles[0]);
+                    AppendTextBox($"Renomeação abortada: {lockedFiles.Count} arquivo(s) bloqueado(s){Environment.NewLine}");
+                    MessageBox.Show(message, "Arquivos bloqueados", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 using (var renameActivity = AudioBookTelemetry.ActivitySource.StartActivity("UI.Rename.SetData"))
                 {
                     renameActivity?.SetTag("album", textBox4.Text);

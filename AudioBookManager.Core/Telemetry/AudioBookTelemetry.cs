@@ -39,6 +39,10 @@ namespace AudioBookManager.Core.Telemetry
             "audiobook.files.tag_errors",
             description: "Total number of file tagging errors");
 
+        public static readonly Counter<long> BookProcessingErrors = Meter.CreateCounter<long>(
+            "audiobook.books.processing_errors",
+            description: "Total number of books that finished GenerateFolder with at least one error in the ErrorStack");
+
         public static readonly Counter<long> GoodreadsSearches = Meter.CreateCounter<long>(
             "audiobook.goodreads.searches",
             description: "Total number of Goodreads searches performed");

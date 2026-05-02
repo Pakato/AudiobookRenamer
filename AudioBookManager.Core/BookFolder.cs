@@ -81,6 +81,11 @@ namespace AudioBookManager.Core
             }
         }
 
+        public override IEnumerable<string> SourceFiles =>
+            (AudioFiles ?? Enumerable.Empty<string>())
+            .Concat(OtherFiles ?? Enumerable.Empty<string>())
+            .Concat(CueFiles ?? Enumerable.Empty<string>());
+
         protected override async Task HandleFiles(string bookFolder)
         {
             using var activity = AudioBookTelemetry.ActivitySource.StartActivity("BookFolder.HandleFiles");
@@ -138,7 +143,7 @@ namespace AudioBookManager.Core
 
         private async Task<bool> HandleAudio(string bookFolder, string audioFile, int i)
         {
-            var newFilePath = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All)} - " +
+            var newFilePath = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All).ToSafeFileName()} - " +
                               $"{(i + 1).ToString().PadLeft(2, '0')}" +
                               $"{System.IO.Path.GetExtension(audioFile)}";
             var newAudioPath = System.IO.Path.Combine(bookFolder, newFilePath);
@@ -192,7 +197,7 @@ namespace AudioBookManager.Core
 
         private async Task<bool> HandleOthers(string bookFolder, string otherFile)
         {
-            var newFilePath = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All)} - " +
+            var newFilePath = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All).ToSafeFileName()} - " +
                               $"{(1).ToString().PadLeft(2, '0')}" +
                               $"{System.IO.Path.GetExtension(otherFile)}";
             var newPath = System.IO.Path.Combine(bookFolder, newFilePath);
@@ -275,10 +280,10 @@ namespace AudioBookManager.Core
 
         private async Task<bool> HandleCue(string bookFolder, string cueFiles)
         {
-            var newFilePath = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All)} - " +
+            var newFilePath = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All).ToSafeFileName()} - " +
                               $"{(1).ToString().PadLeft(2, '0')}" +
                               $"{System.IO.Path.GetExtension(cueFiles)}";
-            var newFilePathFile = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All)} - " +
+            var newFilePathFile = $"{StringHelper.ToTitleCase(BookTitle, TitleCase.All).ToSafeFileName()} - " +
                                   $"{(1).ToString().PadLeft(2, '0')}" +
                                   $"{System.IO.Path.GetExtension(AudioFiles.First())}";
             var newPath = System.IO.Path.Combine(bookFolder, newFilePath);
