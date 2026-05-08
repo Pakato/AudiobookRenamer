@@ -160,6 +160,7 @@ namespace AudioBookManager
 
         private void Button5_Click(object sender, EventArgs e)
         {
+            using var activity = AudioBookTelemetry.ActivitySource.StartActivity("UI.Reset");
             ResetScreen();
         }
 

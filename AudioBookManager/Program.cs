@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Security;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -81,7 +82,12 @@ namespace AudioBookManager
                 {
                     o.Endpoint = new Uri("https://apm.pakato.org/api/3DS8VYPW966dkZSBJgNPp1hJIew");
                     o.Protocol = OtlpExportProtocol.HttpProtobuf;
-                    o.Headers = "Authorization=Basic cGFrYXRvQHBha2F0by5vcmc6S3JoUlBQS3U5VkdZMTFEaA==";
+                    o.HttpClientFactory = () =>
+                    {
+                        HttpClient client = new HttpClient();
+                        client.DefaultRequestHeaders.Add("Authorization", "Basic cGFrYXRvQHBha2F0by5vcmc6S3JoUlBQS3U5VkdZMTFEaA==");
+                        return client;
+                    };
                 })
                 .Build();
 
@@ -93,7 +99,12 @@ namespace AudioBookManager
                 {
                     o.Endpoint = new Uri("https://apm.pakato.org/api/3DS8VYPW966dkZSBJgNPp1hJIew");
                     o.Protocol = OtlpExportProtocol.HttpProtobuf;
-                    o.Headers = "Authorization=Basic cGFrYXRvQHBha2F0by5vcmc6S3JoUlBQS3U5VkdZMTFEaA==";
+                    o.HttpClientFactory = () =>
+                    {
+                        HttpClient client = new HttpClient();
+                        client.DefaultRequestHeaders.Add("Authorization", "Basic cGFrYXRvQHBha2F0by5vcmc6S3JoUlBQS3U5VkdZMTFEaA==");
+                        return client;
+                    };
                 })
                 .Build();
 
