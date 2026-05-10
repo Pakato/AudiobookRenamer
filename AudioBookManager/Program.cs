@@ -1,4 +1,5 @@
 ﻿using AudioBookManager.Core.Telemetry;
+using AutoUpdaterDotNET;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
@@ -113,11 +114,25 @@ namespace AudioBookManager
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            ConfigureAutoUpdater();
+            AutoUpdater.Start("https://github.com/Pakato/AudiobookRenamer/releases/latest/download/update.xml");
+
             Application.Run(new AudioBookManager());
 
             //meterProvider.ForceFlush();
             //tracerProvider.ForceFlush();
             Log.CloseAndFlush();
+        }
+
+        private static void ConfigureAutoUpdater()
+        {
+            AutoUpdater.AppTitle = "Audiobook Renamer";
+            AutoUpdater.RunUpdateAsAdmin = false;
+            AutoUpdater.InstallationPath = Application.StartupPath;
+            AutoUpdater.Mandatory = false;
+            AutoUpdater.UpdateMode = Mode.Normal;
+            AutoUpdater.ReportErrors = false;
         }
     }
 }

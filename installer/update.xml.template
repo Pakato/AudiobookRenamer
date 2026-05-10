@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<item>
+    <version>__VERSION__.0</version>
+    <url>https://github.com/Pakato/AudiobookRenamer/releases/download/v__VERSION__/AudiobookRenamerSetup-__VERSION__.exe</url>
+    <changelog>https://github.com/Pakato/AudiobookRenamer/releases/tag/v__VERSION__</changelog>
+    <args>/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS</args>
+    <mandatory mode="0">false</mandatory>
+</item>
