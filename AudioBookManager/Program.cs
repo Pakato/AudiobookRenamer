@@ -29,7 +29,7 @@ namespace AudioBookManager
         static void Main()
         {
             // Init the Sentry SDK
-            /*SentrySdk.Init(o =>
+            SentrySdk.Init(o =>
             {
                 // Tells which project in Sentry to send events to:
                 o.Dsn = "https://b948b2e518c63226438656e8375a5c32@sentry.pakato.org/2";
@@ -39,7 +39,7 @@ namespace AudioBookManager
                 o.StackTraceMode = StackTraceMode.Enhanced;
                 o.SendDefaultPii = true;
                 o.ProfilesSampleRate = 1.0;
-                o.TracesSampleRate = 1.0;
+                o.TracesSampleRate = 1.0;                
                 o.AddIntegration(new ProfilingIntegration(
                     // During startup, wait up to 500ms to profile the app startup code.
                     // This could make launching the app a bit slower so comment it out if you
@@ -47,11 +47,11 @@ namespace AudioBookManager
                     //TimeSpan.FromMilliseconds(500)
                 ));
                 o.UseOpenTelemetry();
-            });*/
+            });
 
             Log.Logger = new LoggerConfiguration()
             .Enrich.WithSpan()
-            /*.WriteTo.Sentry(o =>
+            .WriteTo.Sentry(o =>
             {
                 o.Dsn = "https://b948b2e518c63226438656e8375a5c32@sentry.pakato.org/2";
                 o.InitializeSdk = false; // Already initialized above
@@ -59,7 +59,7 @@ namespace AudioBookManager
                 o.MinimumBreadcrumbLevel = LogEventLevel.Debug;
                 // Warning and higher is sent as event (default is Error)
                 o.MinimumEventLevel = LogEventLevel.Warning;
-            })*/
+            })
             .WriteTo.OpenTelemetry(o=>
             {
                 o.Endpoint ="https://apm.pakato.org/api/3DS8VYPW966dkZSBJgNPp1hJIew";
@@ -76,11 +76,11 @@ namespace AudioBookManager
             // Configure OpenTelemetry Tracing
             using var tracerProvider = Sdk.CreateTracerProviderBuilder()
                 .AddSource(AudioBookTelemetry.ServiceName)
-                //.AddSentry()
+                .AddSentry()
                 .AddConsoleExporter()
                 .AddOtlpExporter(o =>
                 {
-                    o.Endpoint = new Uri("https://apm.pakato.org/api/3DS8VYPW966dkZSBJgNPp1hJIew");
+                    o.Endpoint = new Uri("https://apm.pakato.org/api/3DS8VYPW966dkZSBJgNPp1hJIew/v1/traces");
                     o.Protocol = OtlpExportProtocol.HttpProtobuf;
                     o.HttpClientFactory = () =>
                     {
@@ -93,16 +93,17 @@ namespace AudioBookManager
 
             // Configure OpenTelemetry Metrics
             using var meterProvider = Sdk.CreateMeterProviderBuilder()
-                .AddMeter(AudioBookTelemetry.ServiceName)
+                .AddMeter(AudioBookTelemetry.ServiceName)                
                 .AddConsoleExporter()
                 .AddOtlpExporter(o =>
                 {
-                    o.Endpoint = new Uri("https://apm.pakato.org/api/3DS8VYPW966dkZSBJgNPp1hJIew");
+                    o.Endpoint = new Uri("https://apm.pakato.org/api/3DS8VYPW966dkZSBJgNPp1hJIew/v1/metrics");
                     o.Protocol = OtlpExportProtocol.HttpProtobuf;
                     o.HttpClientFactory = () =>
                     {
                         HttpClient client = new HttpClient();
                         client.DefaultRequestHeaders.Add("Authorization", "Basic cGFrYXRvQHBha2F0by5vcmc6S3JoUlBQS3U5VkdZMTFEaA==");
+                        client.DefaultRequestHeaders.Add("stream-name", "default");
                         return client;
                     };
                 })
