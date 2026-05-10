@@ -299,7 +299,7 @@
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1426, 653);
+            ClientSize = new System.Drawing.Size(1426, 661);
             Controls.Add(btnGoodreads);
             Controls.Add(btnBrowseExistingFolder);
             Controls.Add(btnReset);
